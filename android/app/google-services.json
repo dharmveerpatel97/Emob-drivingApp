@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "199655986353",
+    "project_id": "panasonic-release",
+    "storage_bucket": "panasonic-release.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:199655986353:android:cc4fdb861828c6d6b27e90",
+        "android_client_info": {
+          "package_name": "com.mirale"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "199655986353-ieie9vd09ggi4har95n9p51j814tackc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuF19kZ-WbE-_7EPOgM88drY6g-Gqak0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "199655986353-ieie9vd09ggi4har95n9p51j814tackc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:199655986353:android:84ce93001a573518b27e90",
+        "android_client_info": {
+          "package_name": "com.passengermir"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "199655986353-ieie9vd09ggi4har95n9p51j814tackc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuF19kZ-WbE-_7EPOgM88drY6g-Gqak0s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "199655986353-ieie9vd09ggi4har95n9p51j814tackc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,7 +3,8 @@ import NetInfo from "@react-native-community/netinfo";
 
 class SocketProvider {
     websocket = null;
-    listeners = {}; // Store listeners for dynamic registration
+    listeners = {};
+    messageQueue = []; // Queue for messages when disconnected
 
     constructor() {
         this.reconnectAttempts = 0;
@@ -16,7 +17,6 @@ class SocketProvider {
             this.listeners[eventName] = [];
         }
         this.listeners[eventName].push(callback);
-
         if (this.websocket) {
             this.addWebSocketListener(eventName, callback);
         }
@@ -25,7 +25,6 @@ class SocketProvider {
     unregister = (eventName, callback) => {
         if (this.listeners[eventName]) {
             this.listeners[eventName] = this.listeners[eventName].filter(cb => cb !== callback);
-
             if (this.websocket) {
                 this.removeWebSocketListener(eventName, callback);
             }
@@ -43,7 +42,6 @@ class SocketProvider {
 
     removeWebSocketListener = (eventName, callback) => {
         if (this.websocket && this.websocket[`on${eventName}`]) {
-            // Find the correct event listener to remove.
             const originalListener = this.websocket[`on${eventName}`];
             if (originalListener) {
               this.websocket[`on${eventName}`] = null;
@@ -58,9 +56,9 @@ class SocketProvider {
         }
 
         const netInfo = await NetInfo.fetch();
-        if(!netInfo.isConnected){
-            console.log("No internet connection")
-            return
+        if (!netInfo.isConnected) {
+            console.log("No internet connection. Cannot connect.");
+            return;
         }
 
         const url = `https://emob.miraie.in/ws/v1/connect?auth=${authToken}`;
@@ -71,13 +69,22 @@ class SocketProvider {
                 'user-agent': 'react-native',
             },
         });
+        this.websocket.binaryType = 'arraybuffer';
 
-        this.websocket.binaryType = 'arraybuffer'; // Important for binary data
+        const connectionTimeout = setTimeout(() => {
+            if (this.websocket && this.websocket.readyState !== WebSocket.OPEN) {
+                console.log("WebSocket connection timeout.");
+                this.websocket.close();
+                this.reconnect();
+            }
+        }, 10000); // 10-second timeout
 
         this.websocket.onopen = () => {
+            clearTimeout(connectionTimeout);
             console.log('WebSocket connected');
             this.reconnectAttempts = 0;
             this.reconnectDelay = 1000;
+            this.sendQueuedMessages(); // Send queued messages after reconnection
             this.triggerListeners('open');
         };
 
@@ -99,7 +106,6 @@ class SocketProvider {
             this.reconnect();
         };
 
-        // Add pre-existing listeners
         for (const eventName in this.listeners) {
             this.listeners[eventName].forEach(callback => {
                 this.addWebSocketListener(eventName, callback);
@@ -112,6 +118,7 @@ class SocketProvider {
             console.log('Disconnecting WebSocket');
             this.websocket.close();
             this.websocket = null;
+            this.messageQueue = []; // Clear the queue on explicit disconnect
         }
     };
 
@@ -124,29 +131,48 @@ class SocketProvider {
                 console.log('WebSocket message sent:', msg);
             } catch (error) {
                 console.error('Error sending WebSocket message:', error);
-                this.triggerListeners('error', error); // Trigger error listeners
+                this.triggerListeners('error', error);
             }
         } else {
-            console.warn('WebSocket is not open. Message not sent:', msg);
+            console.warn('WebSocket is not open. Queueing message:', msg);
+            this.messageQueue.push(msg); // Queue the message
         }
     };
 
+    sendQueuedMessages = () => {
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN && this.messageQueue.length > 0) {
+            console.log("Sending queued messages")
+            this.messageQueue.forEach(msg => this.sendMessage(msg));
+            this.messageQueue = []; // Clear the queue after sending
+        }
+    }
+
     reconnect = async () => {
         const netInfo = await NetInfo.fetch();
-        if(!netInfo.isConnected){
-            console.log("No internet connection")
-            return
+        if (!netInfo.isConnected) {
+            console.log("No internet connection. Cancelling reconnection attempts.");
+            this.reconnectAttempts = 0;
+            this.reconnectDelay = 1000;
+            return;
         }
 
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
-            console.log(`Reconnecting WebSocket in ${this.reconnectDelay / 1000} seconds (Attempt ${this.reconnectAttempts})...`);
-            setTimeout(() => {
-                this.connect(); // Reconnect without authToken, assuming it's stored
-                this.reconnectDelay *= 2; // Exponential backoff
-            }, this.reconnectDelay);
+            const jitter = Math.random() * 500;
+            const delayWithJitter = Math.min(this.reconnectDelay + jitter, 30000);
+            console.log(`Reconnecting WebSocket in ${delayWithJitter / 1000} seconds (Attempt ${this.reconnectAttempts})...`);
+            setTimeout(async () => {
+                const currentNetInfo = await NetInfo.fetch();
+                if(!currentNetInfo.isConnected){
+                    console.log("Network disconnected during reconnection attempt")
+                    return
+                }
+                this.connect();
+                this.reconnectDelay *= 2;
+            }, delayWithJitter);
         } else {
             console.log('Max reconnection attempts reached. Please check your network connection.');
+            this.triggerListeners('error', new Error("Max reconnection attempts reached"));
             this.reconnectAttempts = 0;
             this.reconnectDelay = 1000;
         }
